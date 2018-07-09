@@ -85,6 +85,7 @@ compile:
 		;	mov r13, 0  ;set port                0x2020000D
 		;	mov r12, 0  ;set ram pointer         0x2020000C
 		;	mov r11, n  ;set ram index           0x202....B
+		;   mov r10, m  ;set the getchar address 0x202....A
 		mov r6, 0x2020		;pretty much the only MSB set
 		swm r6              ;load em' up
 		mov r5, 0x000E      ;load sp's instruction first as we'll
@@ -103,6 +104,13 @@ compile:
 		shl r8, 4           ;shift it by 4 to fit the class 2
 		or r5, r8           ;or it with LSBs of our instruction
 		mov [r4+code], r5	;encode mov r11, ram
+		add r4, 1
+
+		mov r8, read_character
+		shl r8, 4
+		mov r5, 0x000A
+		or r5, r8
+		mov [r4+code], r5
 		add r4, 1
 
 	.loop:
@@ -338,6 +346,7 @@ main:
 ; * Character code is returned in [r11+r12].
 ; * r13 is terminal port address.
 read_character:
+push r0
 .wait_loop:
     wait r3                   ; * Wait for a bump. r3 should be checked but
                               ;   as in this demo there's no other peripheral,
@@ -345,8 +354,10 @@ read_character:
     js .wait_loop
     bump r13                  ; * Ask for character code.
 .recv_loop:
-    recv [r11+r12], r13       ; * Receive character code.
+    recv r0, r13       ; * Receive character code.
     jnc .recv_loop            ; * The carry bit it set if something is received.
+    mov [r11+r12], r0
+    pop r0
     ret
 
 
