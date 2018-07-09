@@ -4,7 +4,9 @@ bump r13
 send r13, 0x200F
 send r13, 0x1000
 ;send r13, 0x0041
-jmp main
+or [sp], 0xFFFF
+;jmp main
+hlt
 
 bfrom:
 	dw "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>."
@@ -47,17 +49,26 @@ bfrom:
 ;   .: and [r11+r12], 0x00FF ;0x21EB0FFC
 ;		mask: 0x00E00000 | r11<<16 = B0000 | r12<<0 = C | 0xFF<<4 = FF0
 ;		and:  0x21000000
-;	   send r13, [r11+r12]
-;		mask:
-;       send:
+;	   send r13, [r11+r12] ;0x3A9B00CD
+;		mask: 0x00900000 | r13<<0 = D | r12<<4 = C0 | r11<<16 = B0000
+;       send: 0x3A000000
 ;
 ;   ,: call r10
 ;
 ;totally didnt forget these when testing for the first time:
 ;
-;	[: 
-;	]: 
-
+;	[: cmp [r11+r12], 0
+;		mask: 0x00E00000 | r12<<0 = C | r11<<16 = B0000
+;		cmp:  0x2E000000
+;	   jz <pairing ], inserted compiletime>
+;		mask: 0x00200000 | $]<<4
+;		jz:   0x31000008
+;	]: cmp [r11+r12], 0
+;		mask: 0x00E00000 | r12<<0 = C | r11<<16 = B0000
+;		cmp:  0x2E000000
+;      jnz <pairing [, inserted compiletime>
+;		mask: 0x00200000 | $]<<4
+;		jnz:  0x31000009
 
 compile:
 	mov r9, 0 ;rom counter
@@ -110,10 +121,10 @@ compile:
 		je .instr_left      ;^
 
 		cmp r8, '['         ;check if it is [
-		je .instr_bopen     ;^
+		je .instr_bropen     ;^
 
 		cmp r8, ']'         ;check if it is ]
-		je .instr_bclose    ;^
+		je .instr_brclose    ;^
 
 		cmp r8, '.'         ;check if it is .
 		je .instr_out
@@ -219,30 +230,73 @@ compile:
 			add r4, 1           ;move on to the next instruction
 
 			jmp .loopiter       ;continue compilation
+;	[: cmp [r11+r12], 0 ;0x2E2B000C
+;		mask: 0x00E00000 | r12<<0 = C | r11<<16 = B0000
+;		cmp:  0x2E000000
+;	   jz <pairing ], inserted compiletime> ;0x31200..8
+;		mask: 0x00200000 | $]<<4
+;		jz:   0x31000008
+;	]: cmp [r11+r12], 0 ;0x2E2B000C
+;		mask: 0x00E00000 | r12<<0 = C | r11<<16 = B0000
+;		cmp:  0x2E000000
+;      jnz <pairing [, inserted compiletime> ;0x31200..9
+;		mask: 0x00200000 | $]<<4
+;		jnz:  0x31000009
 		.instr_bropen:
+			mov r6, 0x2E2B      ;the first instruction is static
+			mov r5, 0x000C      ;which is 0x2E2B000C
+			swm r6              ;load 0x2E2B
+			mov [r4+code], r5   ;encode it
+			add r4, 1           ;incerment our PC
 			push r4				;push the current instruction as the
 								;paired ] will use it
-			;code is:
-			;cmp [r11+r12], 0
-			;jz <immediate will be inserted when ] is found>
-			jmp .loopiter
+			mov r6, 0           ;placeholder since we cant OR a memory
+								;location without resetting the upper
+								;13 bits, going to be placed
+			swm r6				;in .instr_brclose
+			mov r5, 0           ;
+			mov [r4+code], r5   ;encode it
+			add r4, 1           ;incerment our PC
+			jmp .loopiter       ;continue
 
 		.instr_brclose:
-			pop r2
-			mov r3, 
-			;code is:
-			;cmp [r11+r12], 0
-			;jnz <whatever got popped>
+			mov r6, 0x2E2B      ;the first instruction is static
+			mov r5, 0x000C      ;which is 0x2E2B000C
+			swm r6              ;load 0x2E2B
+			mov [r4+code], r5   ;encode it
+			add r4, 1           ;incerment our PC
+
+			pop r2              ;get the pairing [s index
+
+			;edit [r2+code]:
+			;	OR it with [r4+code] shifted by 4
+			mov r5, r4          ;move r4 into r5 since it is used by
+								;the instruction
+			add r5, code        ;the instr. uses [r4+code]
+			shl r5, 4           ;shift it by 4 to fit the mask
+			or r5, 0x0008       ;add mask
+			mov r6, 0x3120      ;upper mask bits
+			swm r6              ;set write mask
+			mov [r2+code], r5   ;write the pairing ['s 2nd instruction
+			;[r2+code] is now 0x312(r4+code(current instruction))8
+
+			;edit [r4+code]:
+			;	encode: jnz [r2+code]
+			shl r2, 4
+			add r2, code
+			mov r5, r2
+			or r5, 0x0009
+			mov r6, 0x3120
+			mov [r4+code], r5
+			add r4, 1           ;incerment our PC
+
+			;limitations:
+			;	* we can't exceed 12 bit addressing though it won't be
+			;	  an issue since R216 can at max reach 4096 bytes of
+			;	  RAM (12 bit addressed)
 			jmp .loopiter
 
-		.instr_out: ;note: fuck yes no optimisation needed
-			;   .: and [r11+r12], 0x00FF ;0x21EB0FFC
-			;		mask: 0x00E00000 | r11<<16 = B0000 | r12<<0 = C | 0xFF<<4 = FF0
-			;		and:  0x21000000
-			;	   send r13, [r11+r12] ;0x3A9B00CD
-			;		mask: 0x00900000 | r13<<0 = D | r12<<4 = C0 | r11<<16 = B0000
-			;       send: 0x3A000000
-						  
+		.instr_out: ;note: fuck yes no optimisation needed			  
 			mov r5, 0x0FFC		;we need to keep the values in 8 bit
 								;bounds and the best way to do it is
 								;when it is output (for speed)
