@@ -126,7 +126,7 @@ compile:
 		cmp r8, '.'         ;check if it is .
 		je .instr_out
 
-		ret                 ;if none match, we hit EOF
+		jmp .end            ;if none match, we hit EOF
 
 		.instr_add:
 			add r7, 1           ;add 1 to r7 since we found a +
@@ -303,6 +303,7 @@ compile:
 		;mov r6, 0 ;reset SWM data since it messes up memory writes
 		cmp r9, 256 ;257th instruction, out of rom bounds
 		jne .loop   ;if we are in bounds, continue
+	.end:
 	mov r6, 0x3000
 	swm r6
 	mov r5, 0x0000
