@@ -7,8 +7,9 @@ jmp main
 hlt
 
 bfrom:
-	dw "++++++++-------->>>>>>>><<<<<<<<"
-	;dw "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++."
+	dw "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>."
+	;dw "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>."
+	;dw "[[[[[]]]]]"
 	dw 0x0000
 
 ;compiles into r2asm:
@@ -228,21 +229,21 @@ compile:
 			add r4, 1           ;move on to the next instruction
 
 			jmp .loopiter       ;continue compilation
-;	[: cmp [r11+r12], 0 ;0x2E2B000C
+;	[: cmp [r11+r12], 0 ;0x2EEB000C
 ;		mask: 0x00E00000 | r12<<0 = C | r11<<16 = B0000
 ;		cmp:  0x2E000000
 ;	   jz <pairing ], inserted compiletime> ;0x31200..8
 ;		mask: 0x00200000 | $]<<4
 ;		jz:   0x31000008
-;	]: cmp [r11+r12], 0 ;0x2E2B000C
+;	]: cmp [r11+r12], 0 ;0x2EEB000C
 ;		mask: 0x00E00000 | r12<<0 = C | r11<<16 = B0000
 ;		cmp:  0x2E000000
 ;      jnz <pairing [, inserted compiletime> ;0x31200..9
 ;		mask: 0x00200000 | $]<<4
 ;		jnz:  0x31000009
 		.instr_bropen:
-			mov r6, 0x2E2B      ;the first instruction is static
-			mov r5, 0x000C      ;which is 0x2E2B000C
+			mov r6, 0x2EEB      ;the first instruction is static
+			mov r5, 0x000C      ;which is 0x2EEB000C
 			swm r6              ;load 0x2E2B
 			mov [r4+code], r5   ;encode it
 			add r4, 1           ;incerment our PC
@@ -258,8 +259,8 @@ compile:
 			jmp .loopiter       ;continue
 
 		.instr_brclose:
-			mov r6, 0x2E2B      ;the first instruction is static
-			mov r5, 0x000C      ;which is 0x2E2B000C
+			mov r6, 0x2EEB      ;the first instruction is static
+			mov r5, 0x000C      ;which is 0x2EEB000C
 			swm r6              ;load 0x2E2B
 			mov [r4+code], r5   ;encode it
 			add r4, 1           ;incerment our PC
@@ -280,8 +281,8 @@ compile:
 
 			;edit [r4+code]:
 			;	encode: jnz [r2+code]
-			shl r2, 4
 			add r2, code
+			shl r2, 4
 			mov r5, r2
 			or r5, 0x0009
 			mov r6, 0x3120
@@ -318,13 +319,17 @@ compile:
 		;mov r6, 0 ;reset SWM data since it messes up memory writes
 		cmp r9, 256 ;257th instruction, out of rom bounds
 		jne .loop   ;if we are in bounds, continue
+	mov r6, 0x3000
+	swm r6
+	mov r5, 0x0000
+	mov [r4+code], r5 ;append a HLT
 	ret
 
 main:
 	call compile
 	mov r6, 0 ;reset SWM data since it messes up memory writes
 	swm r6
-	;call code
+	jmp code
 	hlt
 
 dw 0xDEAD ;awesome section seperation (for visual debugging)
@@ -352,5 +357,6 @@ ram:
 dw 0xDEAD ;awesome section seperation (for visual debugging)
 dw 0xBEEF
 
+org 0x300 ;visual debugging of numbers (makes it simple by making the last 8 bits 0 for index)
 code:
 	dw 0x0000
