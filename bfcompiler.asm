@@ -3,9 +3,7 @@ mov r13, 0 ;screen port
 bump r13
 send r13, 0x200F
 send r13, 0x1000
-;send r13, 0x0041
-or [sp], 0xFFFF
-;jmp main
+jmp main
 hlt
 
 bfrom:
