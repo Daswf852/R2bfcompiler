@@ -7,9 +7,7 @@ jmp main
 hlt
 
 bfrom:
-	dw "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>."
-	;dw "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>."
-	;dw "[[[[[]]]]]"
+	dw "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>."
 	dw 0x0000
 
 ;compiles into r2asm:
@@ -56,16 +54,16 @@ bfrom:
 ;
 ;totally didnt forget these when testing for the first time:
 ;
-;	[: cmp [r11+r12], 0
+;	[: cmp [r11+r12], 0 ;0x2EEB000C
 ;		mask: 0x00E00000 | r12<<0 = C | r11<<16 = B0000
 ;		cmp:  0x2E000000
-;	   jz <pairing ], inserted compiletime>
+;	   jz <pairing ], inserted compiletime> ;0x31200..8
 ;		mask: 0x00200000 | $]<<4
 ;		jz:   0x31000008
-;	]: cmp [r11+r12], 0
+;	]: cmp [r11+r12], 0 ;0x2EEB000C
 ;		mask: 0x00E00000 | r12<<0 = C | r11<<16 = B0000
 ;		cmp:  0x2E000000
-;      jnz <pairing [, inserted compiletime>
+;      jnz <pairing [, inserted compiletime> ;0x31200..9
 ;		mask: 0x00200000 | $]<<4
 ;		jnz:  0x31000009
 
@@ -229,18 +227,6 @@ compile:
 			add r4, 1           ;move on to the next instruction
 
 			jmp .loopiter       ;continue compilation
-;	[: cmp [r11+r12], 0 ;0x2EEB000C
-;		mask: 0x00E00000 | r12<<0 = C | r11<<16 = B0000
-;		cmp:  0x2E000000
-;	   jz <pairing ], inserted compiletime> ;0x31200..8
-;		mask: 0x00200000 | $]<<4
-;		jz:   0x31000008
-;	]: cmp [r11+r12], 0 ;0x2EEB000C
-;		mask: 0x00E00000 | r12<<0 = C | r11<<16 = B0000
-;		cmp:  0x2E000000
-;      jnz <pairing [, inserted compiletime> ;0x31200..9
-;		mask: 0x00200000 | $]<<4
-;		jnz:  0x31000009
 		.instr_bropen:
 			mov r6, 0x2EEB      ;the first instruction is static
 			mov r5, 0x000C      ;which is 0x2EEB000C
@@ -310,8 +296,6 @@ compile:
 			swm r6              ;load the MSBs
 			mov [r4+code], r5   ;encode it
 			add r4, 1           ;move on to the next instruction
-
-			add r4, 1           ;move on to the next instruction
 			jmp .loopiter       ;continue compilation
 
 	.loopiter:
@@ -332,8 +316,6 @@ main:
 	jmp code
 	hlt
 
-dw 0xDEAD ;awesome section seperation (for visual debugging)
-dw 0xBEEF
 
 ram:
 	dw 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
@@ -354,9 +336,5 @@ ram:
 	dw 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 	;256byte ram
 
-dw 0xDEAD ;awesome section seperation (for visual debugging)
-dw 0xBEEF
-
-org 0x300 ;visual debugging of numbers (makes it simple by making the last 8 bits 0 for index)
 code:
 	dw 0x0000
