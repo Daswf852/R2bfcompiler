@@ -50,7 +50,9 @@ bfrom:
 ;		mask: 0x00900000 | r13<<0 = D | r12<<4 = C0 | r11<<16 = B0000
 ;       send: 0x3A000000
 ;
-;   ,: call r10
+;   ,: call r10 ;0x3E0000A0
+;		mask: 0 | r10<<4 = A0
+;		call: 0x3E000000
 ;
 ;totally didnt forget these when testing for the first time:
 ;
@@ -125,6 +127,9 @@ compile:
 
 		cmp r8, '.'         ;check if it is .
 		je .instr_out
+
+		cmp r8, ','         ;check if its ,
+		je .instr_in		;^
 
 		jmp .end            ;if none match, we hit EOF
 
@@ -267,12 +272,12 @@ compile:
 
 			;edit [r4+code]:
 			;	encode: jnz [r2+code]
-			add r2, code
-			shl r2, 4
-			mov r5, r2
-			or r5, 0x0009
-			mov r6, 0x3120
-			mov [r4+code], r5
+			add r2, code 		;add the offset to r2
+			shl r2, 4			;shift it by 4 to fit the mask
+			mov r5, r2			;move it to the instruction upper reg.
+			or r5, 0x0009		;or it with for the mask
+			mov r6, 0x3120		;load the upper bits
+			mov [r4+code], r5	;encode
 			add r4, 1           ;incerment our PC
 
 			;limitations:
@@ -298,6 +303,15 @@ compile:
 			add r4, 1           ;move on to the next instruction
 			jmp .loopiter       ;continue compilation
 
+		.instr_in:
+			mov r5, 0x00A0		;first part of the call
+			mov r6, 0x3E00      ;2nd part
+			swm r6 				;set write mask
+			mov [r4+code], r5	;encode the instruction
+			add r4, 1			;incerment the PC
+			jmp .loopiter		;continue
+
+
 	.loopiter:
 		add r9, 1
 		;mov r6, 0 ;reset SWM data since it messes up memory writes
@@ -310,12 +324,22 @@ compile:
 	mov [r4+code], r5 ;append a HLT
 	ret
 
-main:
-	call compile
-	mov r6, 0 ;reset SWM data since it messes up memory writes
-	swm r6
-	jmp code
-	hlt
+;;;CREDIT TO LBPHACKER FOR THIS FUNCTION!!
+;;;MODIFIED TO FIT THIS PROGRAM
+; * Reads a single character from the terminal.
+; * Character code is returned in [r11+r12].
+; * r13 is terminal port address.
+read_character:
+.wait_loop:
+    wait r3                   ; * Wait for a bump. r3 should be checked but
+                              ;   as in this demo there's no other peripheral,
+                              ;   it's fine this way.
+    js .wait_loop
+    bump r13                  ; * Ask for character code.
+.recv_loop:
+    recv [r11+r12], r13       ; * Receive character code.
+    jnc .recv_loop            ; * The carry bit it set if something is received.
+    ret
 
 
 ram:
