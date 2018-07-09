@@ -5,9 +5,9 @@ send r13, 0x200F
 send r13, 0x1000
 jmp main
 hlt
- 
+
 bfrom:
-	dw "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>."
+	dw "++++++++-------->>>>>>>><<<<<<<<"
 	;dw "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++."
 	dw 0x0000
 
@@ -175,7 +175,7 @@ compile:
 			add r7, 1           ;add 1 to r7 since we found a >
 			add r9, 1           ;set index for the next cell
 			mov r8, [bfrom+r9]  ;check the next cell
-			cmp r8, '+'         ;check if it is > aswell
+			cmp r8, '>'         ;check if it is > aswell
 			je .instr_right     ;if so, loop
 			sub r9, 1           ;else, revert the incerased index, loop
 							    ;will take care of r8
@@ -324,7 +324,7 @@ main:
 	call compile
 	mov r6, 0 ;reset SWM data since it messes up memory writes
 	swm r6
-	call code
+	;call code
 	hlt
 
 dw 0xDEAD ;awesome section seperation (for visual debugging)
