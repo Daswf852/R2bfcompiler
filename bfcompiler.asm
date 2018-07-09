@@ -7,7 +7,8 @@ jmp main
 hlt
 
 bfrom:
-	dw "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>."
+	;dw "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>."
+	dw ",[.,]"
 	dw 0x0000
 
 ;compiles into r2asm:
@@ -323,6 +324,13 @@ compile:
 	mov r5, 0x0000
 	mov [r4+code], r5 ;append a HLT
 	ret
+
+main:
+	call compile
+	mov r6, 0 ;reset SWM data since it messes up memory writes
+	swm r6
+	jmp code
+	hlt
 
 ;;;CREDIT TO LBPHACKER FOR THIS FUNCTION!!
 ;;;MODIFIED TO FIT THIS PROGRAM
