@@ -7,8 +7,8 @@ jmp main
 hlt
 
 bfrom:
-	;dw "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>."
-	dw ",[.,]"
+	dw "++++{+{{{.$>-}}^>++{{{++$<^.$>[-]++{{+^..$>+++|.>++{{{{.<<<<$>>>>>-}}}^.<<.+++.<.<-.>>>+.>>+++++{.@"
+	dw "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>.@"
 	dw 0x0000
 
 ;compiles into r2asm:
@@ -19,6 +19,8 @@ bfrom:
 ;	mov r12, 0  ;set ram pointer         0x2020000C
 ;	mov r11, n  ;set ram index           0x202....B
 ;   mov r10, m  ;set the getchar address 0x202....A
+;extended:
+;	mov r9, 0   ;set the storage         0x20200009
 ;
 ;the instructions:
 ;
@@ -70,6 +72,129 @@ bfrom:
 ;		mask: 0x00200000 | $]<<4
 ;		jnz:  0x31000009
 
+;Extended brainfuck:
+;source: https://esolangs.org/wiki/Extended_Brainfuck
+;type 1:
+;@ 	Ends the program, generally used as a separator between code and data.
+;$  Overwrites the byte in storage with the byte at the pointer.
+;!  Overwrites the byte at the pointer with the byte in storage.
+;} 	Performs a single right logical shift of the byte at the pointer.
+;{ 	Performs a single left logical shift of the byte at the pointer.
+;~ 	Performs a bitwise NOT operation on the byte at the pointer (all 1's and 0's are swapped).
+;^ 	Performs a bitwise XOR operation on the byte at the pointer and the byte in storage, storing its result in the byte at the pointer.
+;& 	Performs a bitwise AND operation on the byte at the pointer and the byte in storage, storing its result in the byte at the pointer.
+;| 	Performs a bitwise OR operation on the byte at the pointer and the byte in storage, storing its result in the byte at the pointer. 
+
+;	@: hlt                ;0x30000000
+;	$: mov r9, [r11+r12]
+;		mask: 0x00900000 | r9 = 9 | r11<<16 = B0000 | r12<<4 = C0 )= 0x209B00C9
+;		mov:  0x20000000
+;	!: mov [r11+r12], r9  ;0x20CB80C9
+;		mask: 0x00C08000 | r11<<16 = B0000 | r9 = 9 | r12<<4 = C0 )= 0x00CB80C9
+;		mov:  0x20000000
+;	}: shr [r11+r12], 1   ;0x35EB001C
+;		mask: 0x00E00000 | r11<<16 = B0000 | r12 = C | 1<<4 = 10  )= 0x00EB001C
+;		shr:  0x35000000
+;	{: shl [r11+r12], 1   ;0x34EB001C
+;		mask: 0x00E00000 | r11<<16 = B0000 | r12 = C | 1<<4 = 10  )= 0x00EB001C
+;		shl:  0x34000000
+;	~: //gonna implement later when i find an efficent way to emulate NOT (thanks r2's ALU)
+;	^: xor [r11+r12], r9  ;0x23CB80C9
+;		mask: 0x00C08000 | r11<<16 = B0000 | r9 = 9 | r12<<4 = C0 )= 0x00CB80C9
+;		xor:  0x23000000
+;	&: and [r11+r12], r9  ;0x21CB80C9
+;		mask: 0x00C08000 | r11<<16 = B0000 | r9 = 9 | r12<<4 = C0 )= 0x00CB80C9
+;		and:  0x21000000
+;	|: or [r11+r12], r9   ;0x22CB80C9
+;		mask: 0x00C08000 | r11<<16 = B0000 | r9 = 9 | r12<<4 = C0 )= 0x00CB80C9
+;		or:   0x22000000
+
+;ok im tired of writing the same thing over and over again...
+;heres a basic encoder template:
+;				mov r5, 0x
+;				mov r6, 0x
+;				swm r6
+;				mov [r4+code,r5]
+;				add r4, 1
+;				jmp compile.loopiter
+
+;TODO: holy shit this needs storage optimisation
+
+extended:   ;SHOULD NOT BE CALLED BY ITSELF!!!
+			;THIS IS FOR ORGANISATION, IT ONLY HAS THE RULES EBF
+			.init: ;this can be called, though should be handled with care
+				mov r5, 0x0009
+				mov r6, 0x2020
+				swm r6
+				mov [r4+code], r5
+				add r4, 1
+				ret
+
+			.hlt:
+				mov r5, 0x0000
+				mov r6, 0x3000
+				swm r6
+				mov [r4+code], r5
+				add r4, 1
+				jmp compile.loopiter
+
+			.writestorage:
+				mov r5, 0x209B
+				mov r6, 0x00C9
+				swm r6
+				mov [r4+code], r5
+				add r4, 1
+				jmp compile.loopiter
+
+			.readstorage:
+				mov r5, 0x20CB
+				mov r6, 0x80C9
+				swm r6
+				mov [r4+code], r5
+				add r4, 1
+				jmp compile.loopiter
+
+			.shiftright:
+				mov r5, 0x35EB
+				mov r6, 0x001C
+				swm r6
+				mov [r4+code], r5
+				add r4, 1
+				jmp compile.loopiter
+
+			.shiftleft:
+				mov r5, 0x34EB
+				mov r6, 0x001C
+				swm r6
+				mov [r4+code], r5
+				add r4, 1
+				jmp compile.loopiter
+
+			.xor:
+				mov r5, 0x23CB
+				mov r6, 0x80C9
+				swm r6
+				mov [r4+code], r5
+				add r4, 1
+				jmp compile.loopiter
+
+			.and:
+				mov r5, 0x21CB
+				mov r6, 0x80C9
+				swm r6
+				mov [r4+code], r5
+				add r4, 1
+				jmp compile.loopiter
+
+			.or:
+				mov r5, 0x21CB
+				mov r6, 0x80C9
+				swm r6
+				mov [r4+code], r5
+				add r4, 1
+				jmp compile.loopiter
+
+
 compile:
 	mov r9, 0 ;rom counter
 	mov r8, 0 ;temporary instruction storage
@@ -113,6 +238,8 @@ compile:
 		mov [r4+code], r5
 		add r4, 1
 
+		call extended.init
+
 	.loop:
 		mov r8, [bfrom+r9]  ;fetch the next bf instruction
 
@@ -139,6 +266,30 @@ compile:
 
 		cmp r8, ','         ;check if its ,
 		je .instr_in		;^
+
+		cmp r8, '@'
+		je extended.hlt
+
+		cmp r8, '$'
+		je extended.writestorage
+
+		cmp r8, '!'
+		je extended.readstorage
+
+		cmp r8, '}'
+		je extended.shiftright
+
+		cmp r8, '{'
+		je extended.shiftleft
+
+		cmp r8, '^'
+		je extended.xor
+
+		cmp r8, '&'
+		je extended.and
+
+		cmp r8, '|'
+		je extended.or
 
 		jmp .end            ;if none match, we hit EOF
 
@@ -204,8 +355,8 @@ compile:
 			mov [r4+code], r5   ;write the instuction
 			add r4, 1           ;move on to the next instruction
 
-			mov r5, 0x0FFC      ;we need to keep the number in 8 bit
-								;bounds soo we encode `and r12, 0xFF`
+			mov r5, 0x3FFC      ;we need to keep the number in 10 bit
+								;bounds soo we encode `and r12, 0x3FF`
 			mov r6, 0x2120      ;second part
 			swm r6              ;load up the MSBs
 			mov [r4+code], r5   ;encode it
@@ -233,8 +384,8 @@ compile:
 			mov [r4+code], r5   ;write the instuction
 			add r4, 1           ;move on to the next instruction
 
-			mov r5, 0x0FFC      ;we need to keep the number in 8 bit
-								;bounds soo we encode `and r12, 0xFF`
+			mov r5, 0x3FFC      ;we need to keep the number in 10 bit
+								;bounds soo we encode `and r12, 0x3FF`
 			mov r6, 0x2120      ;second part
 			swm r6              ;load up the MSBs
 			mov [r4+code], r5   ;encode it
